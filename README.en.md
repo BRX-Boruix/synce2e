@@ -1,34 +1,37 @@
 # synce2e
 
-An **end-to-end acceptance program** for BORUIX, verifying blocking wait and wake-up round trips on sync words.
+A BORUIX end-to-end acceptance test for the blocking wait and wake round-trip on sync words.
 
 [简体中文](README.md)
 
 ## What it tests
 
-This is the **waiting side** of a round-trip test. It calls the sync wait interface and **genuinely blocks** (registering as a waiter in the kernel, with a real process switch), until the coordinating side wakes it and passes in a value. The program asserts the wake-up value is exactly `42`, failing honestly otherwise.
+This is the waiting side of a round-trip test: it calls the sync wait interface and **blocks for
+real** — the process is suspended and switched away — until the coordinator wakes it with a value.
+The program asserts that the value is `42`.
 
-The critical path it verifies is **a real process context switch** — blocking and waking require the process to be genuinely suspended and resumed, which the in-kernel self-test cannot cover.
+What it covers is a real context switch: blocking and waking require the process to be genuinely
+suspended and resumed, a path kernel-space self-tests cannot reach.
 
 ## Usage
 
-Spawned as a child by the shell builtin `synce2e`, with the argument `waiter:<id>`, where `<id>` is the sync word number.
+Not run standalone. The `synce2e` builtin of the shell spawns it as a child with the command line
+`waiter:<id>`:
 
 ```
 synce2e[waiter]: blocking on sync_wait
 synce2e[waiter]: woke with value 42 OK
 ```
 
-The coordinating side (in the shell) performs the wake and collects this process's exit code with `waitpid` as the verdict.
+The coordinator creates the sync word, spawns this program, performs the wake, and collects this
+process's exit code as the verdict.
 
 ## Exit codes
 
-| Exit code | Meaning |
-| --- | --- |
-| `0` | Woke with value 42; the round trip succeeded |
-| `2` | Malformed argument (not `waiter:<id>`) |
-| `3` | The wait call itself returned an error |
-| `4` | Woken, but the value received was not 42 |
+- `0` — woke with 42, round-trip succeeded
+- `2` — malformed command line (not `waiter:<number>`)
+- `3` — the wait call itself returned an error
+- `4` — woken, but the value was not 42
 
 ## Building
 
@@ -36,23 +39,23 @@ The coordinating side (in the shell) performs the wake and collects this process
 cargo build --release
 ```
 
-The artifact is deployed as `/programs/synce2e.elf`.
+The binary deploys as `/programs/synce2e.elf`.
 
-## Layout
+## Repository layout
 
 ```
 synce2e/
-├── Cargo.toml    # package definition
+├── Cargo.toml    # package manifest
 ├── build.rs      # injects the linker script
-├── linker.ld     # user-space section layout
+├── linker.ld     # user-space segment layout
 └── src/
-    └── main.rs   # waiting-side logic and verdict
+    └── main.rs   # argument parsing, blocking wait, verdict
 ```
 
 ## Related projects
 
-- [`libsys`](https://github.com/BRX-Boruix/libsys) — provides the sync wait interface
-- [`shell`](https://github.com/BRX-Boruix/shell) — the coordinating side, spawning and waking it
+- [`libsys`](https://github.com/BRX-Boruix/libsys) — the sync wait interface
+- [`shell`](https://github.com/BRX-Boruix/shell) — coordinator: creates, spawns, wakes, collects
 
 ## License
 
